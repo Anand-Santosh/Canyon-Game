@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Canyon Glide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --plum:#2b1b3d;
+    --gold:#ffd166;
+    --coral:#ef6461;
+    --coral-deep:#c8453f;
+    --cream:#f3e9dc;
+    --ink:#2b1b3d;
+    --muted:#6b5947;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;height:100%;
+    background:#12080f;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Inter',system-ui,sans-serif;
+    color:var(--cream);
+    overflow:hidden;
+  }
+  #stage{
+    position:relative;
+    width:min(92vw,420px);
+    aspect-ratio: 2 / 3;
+    border-radius:20px;
+    overflow:hidden;
+    box-shadow:0 25px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06);
+  }
+  canvas{display:block;width:100%;height:100%;touch-action:none;}
+  #hud{
+    position:absolute;top:0;left:0;right:0;
+    display:flex;justify-content:space-between;align-items:flex-start;
+    padding:16px 18px;pointer-events:none;
+  }
+  #hudScore{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;
+    font-size:40px;line-height:1;color:#fff;
+    text-shadow:0 3px 10px rgba(0,0,0,.4);
+    transition:transform .15s ease;
+  }
+  #hudScore.pulse{transform:scale(1.18);}
+  #hudBest{
+    font-size:12px;font-weight:500;text-align:right;color:#fff;
+    background:rgba(18,8,15,.45);padding:6px 10px;border-radius:10px;
+    backdrop-filter:blur(6px);
+  }
+  #hudBest b{font-family:'Space Grotesk',sans-serif;font-size:15px;display:block;}
+  .topRight{position:absolute;top:14px;right:14px;pointer-events:auto;}
+  .iconBtn{
+    width:auto;background:rgba(18,8,15,.45);color:#fff;font-size:12px;
+    padding:7px 12px;border-radius:20px;backdrop-filter:blur(6px);border:none;cursor:pointer;font-family:'Inter',sans-serif;
+  }
+  .hidden{display:none !important;}
+  .overlay{
+    position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;
+    background:linear-gradient(180deg, rgba(18,8,15,.35), rgba(18,8,15,.78));
+    backdrop-filter:blur(2px);
+  }
+  .panel{
+    width:100%;max-width:320px;
+    background:var(--cream);color:var(--ink);
+    border-radius:18px;padding:26px 24px;
+    text-align:center;
+    box-shadow:0 20px 40px rgba(0,0,0,.35);
+  }
+  .panel h1{font-family:'Space Grotesk',sans-serif;font-size:26px;margin:0 0 8px;font-weight:700;}
+  .panel p.sub{margin:0 0 18px;font-size:14px;color:var(--muted);line-height:1.55;}
+  .bigScore{font-family:'Space Grotesk',sans-serif;font-size:52px;font-weight:700;margin:2px 0 0;color:var(--coral-deep);}
+  .scoreLabel{font-size:12px;color:var(--muted);margin-bottom:16px;}
+  .bestRow{font-size:13px;color:var(--muted);margin:-6px 0 20px;}
+  .bestRow b{color:var(--ink);}
+  input[type=text]{
+    width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid #d9cdb8;
+    font-family:'Inter',sans-serif;font-size:15px;margin-bottom:14px;
+    background:#fff;color:var(--ink);
+  }
+  input[type=text]:focus{outline:2px solid var(--coral-deep);border-color:var(--coral-deep);}
+  button{
+    font-family:'Inter',sans-serif;font-weight:600;font-size:15px;
+    border:none;border-radius:12px;padding:13px 18px;cursor:pointer;
+    width:100%;margin-bottom:10px;transition:transform .1s ease, opacity .15s ease;
+  }
+  button:active{transform:scale(.97);}
+  button:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+  .btnPrimary{background:var(--coral-deep);color:#fff;}
+  .btnSecondary{background:transparent;color:var(--ink);border:1.5px solid #d9cdb8;}
+  .btnGhost{background:none;color:var(--muted);font-size:13px;padding:6px;width:auto;margin:14px auto 0;display:block;text-decoration:underline;}
+  .row{display:flex;gap:10px;}
+  .row button{margin-bottom:0;}
+  #boardList{list-style:none;margin:0 0 6px;padding:0;text-align:left;max-height:280px;overflow-y:auto;}
+  #boardList li{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #e7dcc9;font-size:14px;}
+  #boardList li b{font-family:'Space Grotesk',sans-serif;width:22px;color:var(--muted);font-weight:700;}
+  #boardList li span.nm{flex:1;font-weight:500;}
+  #boardList li span.sc{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--coral-deep);}
+  #boardList li.me{background:#fff3e0;border-radius:8px;}
+  #boardStatus{font-size:13px;color:var(--muted);padding:16px 0;}
+  #toast{
+    position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
+    background:rgba(18,8,15,.9);color:#fff;font-size:13px;
+    padding:10px 16px;border-radius:20px;max-width:80%;text-align:center;
+    opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+  #milestoneBanner{
+    position:absolute;top:26%;left:50%;
+    transform:translate(-50%,-50%) scale(.55);
+    text-align:center;pointer-events:none;opacity:0;
+  }
+  #milestoneBanner .num{
+    font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:48px;color:var(--gold);
+    text-shadow:0 4px 16px rgba(0,0,0,.55);line-height:1;
+  }
+  #milestoneBanner .msg{
+    margin-top:2px;font-size:16px;font-weight:600;color:#fff;
+    text-shadow:0 3px 10px rgba(0,0,0,.55);
+  }
+  @keyframes milestonePop{
+    0%{transform:translate(-50%,-50%) scale(.55);opacity:0;}
+    18%{transform:translate(-50%,-50%) scale(1.14);opacity:1;}
+    30%{transform:translate(-50%,-50%) scale(1);opacity:1;}
+    78%{transform:translate(-50%,-50%) scale(1);opacity:1;}
+    100%{transform:translate(-50%,-58%) scale(.92);opacity:0;}
+  }
+  #milestoneBanner.show{animation:milestonePop 1.9s cubic-bezier(.2,.8,.2,1) forwards;}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div id="hudScore">0</div>
+    <div id="hudBest">Best<b id="hudBestVal">0</b></div>
+  </div>
+
+  <div id="milestoneBanner">
+    <div class="num" id="milestoneNum">50</div>
+    <div class="msg" id="milestoneMsg">Keep going!</div>
+  </div>
+
+  <div class="topRight">
+    <button class="iconBtn" id="btnBoardTop">Leaderboard</button>
+  </div>
+
+  <div class="overlay" id="startOverlay">
+    <div class="panel" id="startPanel">
+      <h1>Canyon Glide</h1>
+      <p class="sub">Tap, click, or press space to snap your wings and catch the updraft. The canyon has no end — see how far you get before you clip a spire.</p>
+      <input type="text" id="nameInput" placeholder="Your name for the leaderboard" maxlength="14" />
+      <button class="btnPrimary" id="btnStart">Start gliding</button>
+      <button class="btnGhost" id="btnBoardFromStart">View leaderboard</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="deadOverlay">
+    <div class="panel">
+      <div class="scoreLabel">Run ended</div>
+      <div class="bigScore" id="finalScore">0</div>
+      <div class="bestRow" id="bestRow"></div>
+      <div class="row">
+        <button class="btnSecondary" id="btnShare">Share challenge</button>
+        <button class="btnPrimary" id="btnRetry">Glide again</button>
+      </div>
+      <button class="btnGhost" id="btnBoardFromDead">View leaderboard</button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="boardOverlay">
+    <div class="panel">
+      <h1 style="font-size:21px;">Leaderboard</h1>
+      <p class="sub" style="margin-bottom:8px;">Best runs from everyone who's played this glider.</p>
+      <div id="boardStatus">Loading scores…</div>
+      <ul id="boardList"></ul>
+      <button class="btnPrimary" id="btnBoardClose">Back</button>
+      <button class="btnGhost" id="btnReset">Reset my name &amp; best score</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+(function(){
+  // ---------- logical world ----------
+  const W = 400, H = 600;
+  const PPM = 100;                 // pixels per meter
+  const GRAVITY = 6.2 * PPM;       // px/s^2 — softened for a floatier, easier-to-read fall
+  const FLAP_V = -3.1 * PPM;       // px/s upward impulse — gentler wing-snap, less overshoot
+  const TERMINAL_V = 6 * PPM;      // px/s fall speed cap
+  const GROUND_H = 0.62 * PPM;
+  const BIRD_X = 0.9 * PPM;
+  const BIRD_R = 0.15 * PPM;
+  const SPIRE_W = 0.6 * PPM;
+  const SPIRE_GAP_BASE = 2.4 * PPM;
+  const SPIRE_GAP_MIN = 1.9 * PPM;
+  const SPIRE_SPACING = 2.9 * PPM;
+  const SPEED_BASE = 1.9 * PPM;
+  const SPEED_MAX = 3.2 * PPM;
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  function fitCanvas(){
+    const dpr = Math.min(window.devicePixelRatio||1, 2.5);
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  fitCanvas();
+  window.addEventListener('resize', fitCanvas);
+
+  // ---------- state ----------
+  let state = 'ready'; // ready | playing | dead
+  let bird, spires, backSpires, particles, score, speed, lastT, elapsed, lastMilestone;
+
+  function resetRun(){
+    bird = { y: H*0.42, vy: 0, rot: 0 };
+    spires = [];
+    backSpires = [];
+    particles = [];
+    score = 0;
+    speed = SPEED_BASE;
+    elapsed = 0;
+    lastMilestone = 0;
+    milestoneBanner.classList.remove('show');
+    let x = W + 200;
+    for(let i=0;i<4;i++){ spires.push(makeSpire(x)); x += SPIRE_SPACING; }
+    let bx = W + 100;
+    for(let i=0;i<3;i++){ backSpires.push(makeSpire(bx, true)); bx += SPIRE_SPACING*1.4; }
+    updateHud();
+  }
+
+  function makeSpire(x, back){
+    const gap = back ? SPIRE_GAP_BASE*1.3 : Math.max(SPIRE_GAP_MIN, SPIRE_GAP_BASE - score*0.6);
+    const margin = 0.5*PPM;
+    const room = Math.max(20, H - GROUND_H - gap - margin*2);
+    const top = margin + Math.random()*room;
+    return { x, gapTop: top, gap, scored:false, seed: Math.random()*1000 };
+  }
+
+  // ---------- input ----------
+  function flap(){
+    if(state==='ready'){ startGame(); return; }
+    if(state!=='playing') return;
+    bird.vy = FLAP_V;
+    spawnPuff();
+  }
+  canvas.addEventListener('pointerdown', (e)=>{ e.preventDefault(); flap(); });
+  window.addEventListener('keydown', (e)=>{
+    if(e.code==='Space' || e.code==='ArrowUp'){ e.preventDefault(); flap(); }
+  });
+
+  function startGame(){
+    resetRun();
+    state = 'playing';
+    startOverlay.classList.add('hidden');
+    deadOverlay.classList.add('hidden');
+    btnBoardTop.classList.add('hidden');
+    bird.vy = FLAP_V*0.7;
+    spawnPuff();
+  }
+
+  function endRun(){
+    state = 'dead';
+    finalScore.textContent = score;
+    btnBoardTop.classList.remove('hidden');
+    finishRun();
+  }
+
+  // ---------- physics ----------
+  function update(dt){
+    elapsed += dt;
+    speed = Math.min(SPEED_MAX, SPEED_BASE + score*1.1);
+
+    bird.vy += GRAVITY*dt;
+    if(bird.vy > TERMINAL_V) bird.vy = TERMINAL_V;
+    bird.y += bird.vy*dt;
+
+    const targetRot = Math.max(-18, Math.min(50, (bird.vy/650)*45));
+    bird.rot += (targetRot - bird.rot)*Math.min(1, dt*10);
+
+    if(bird.y - BIRD_R < 0){ bird.y = BIRD_R; if(bird.vy<0) bird.vy = 0; }
+
+    const floorY = H - GROUND_H;
+    if(bird.y + BIRD_R >= floorY){ bird.y = floorY - BIRD_R; endRun(); updateParticles(dt); return; }
+
+    for(const s of spires){
+      s.x -= speed*dt;
+      if(!s.scored && s.x + SPIRE_W < BIRD_X){
+        s.scored = true; score++; pulseScore();
+        if(score % 50 === 0 && score !== lastMilestone){
+          lastMilestone = score;
+          triggerMilestone(score);
+        }
+      }
+      const withinX = BIRD_X + BIRD_R > s.x && BIRD_X - BIRD_R < s.x + SPIRE_W;
+      if(withinX){
+        if(bird.y - BIRD_R < s.gapTop || bird.y + BIRD_R > s.gapTop + s.gap){ endRun(); updateParticles(dt); return; }
+      }
+    }
+    while(spires.length && spires[0].x + SPIRE_W < -50){
+      spires.shift();
+      const lastX = spires[spires.length-1].x;
+      spires.push(makeSpire(lastX + SPIRE_SPACING));
+    }
+    for(const s of backSpires){ s.x -= speed*0.45*dt; }
+    while(backSpires.length && backSpires[0].x < -200){
+      backSpires.shift();
+      const lastX = backSpires[backSpires.length-1].x;
+      backSpires.push(makeSpire(lastX + SPIRE_SPACING*1.4, true));
+    }
+
+    updateParticles(dt);
+    updateHud();
+  }
+
+  function spawnPuff(){
+    for(let i=0;i<6;i++){
+      const a = Math.random()*Math.PI*2;
+      particles.push({
+        x: BIRD_X - BIRD_R*0.5, y: bird.y,
+        vx: Math.cos(a)*60 - speed*0.3, vy: Math.sin(a)*60 + 30,
+        life: 0.45 + Math.random()*0.25, age: 0
+      });
+    }
+  }
+  function spawnCelebration(){
+    const colors = ['255,214,102','239,100,97','243,233,220','255,255,255'];
+    for(let i=0;i<28;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 60 + Math.random()*150;
+      particles.push({
+        x: BIRD_X, y: bird.y,
+        vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 50,
+        life: 0.7 + Math.random()*0.5, age: 0,
+        grav: 130, size: 2 + Math.random()*2.5, alphaMax: 0.9,
+        color: colors[Math.floor(Math.random()*colors.length)]
+      });
+    }
+  }
+  function updateParticles(dt){
+    for(const p of particles){
+      p.age += dt; p.x += p.vx*dt; p.y += p.vy*dt;
+      p.vy += (p.grav!==undefined ? p.grav : 300)*dt;
+    }
+    particles = particles.filter(p=>p.age<p.life);
+  }
+
+  const MILESTONE_MESSAGES = [
+    "Keep going!", "You're a pro!", "On a roll!", "Nice altitude!",
+    "Absolutely gliding!", "Canyon legend!", "Still soaring!", "Unstoppable!"
+  ];
+  function triggerMilestone(sc){
+    const msg = MILESTONE_MESSAGES[Math.floor(Math.random()*MILESTONE_MESSAGES.length)];
+    milestoneNum.textContent = sc;
+    milestoneMsg.textContent = msg;
+    milestoneBanner.classList.remove('show');
+    void milestoneBanner.offsetWidth;
+    milestoneBanner.classList.add('show');
+    spawnCelebration();
+  }
+
+  // ---------- render ----------
+  function drawSky(){
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#241534');
+    g.addColorStop(0.55,'#5b2f45');
+    g.addColorStop(0.82,'#e8703a');
+    g.addColorStop(1,'#f2a154');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+
+    const gx = W*0.72, gy = H*0.66, gr = 70;
+    const glow = ctx.createRadialGradient(gx,gy,0,gx,gy,gr);
+    glow.addColorStop(0,'rgba(255,214,102,.85)');
+    glow.addColorStop(1,'rgba(255,214,102,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(gx,gy,gr,0,Math.PI*2); ctx.fill();
+  }
+
+  function roundedRect(x,y,w,h,rad){
+    if(h<=0.5) return;
+    const tl=rad.tl, tr=rad.tr, bl=rad.bl, br=rad.br;
+    ctx.beginPath();
+    ctx.moveTo(x+tl,y);
+    ctx.lineTo(x+w-tr,y);
+    ctx.arcTo(x+w,y,x+w,y+tr,tr);
+    ctx.lineTo(x+w,y+h-br);
+    ctx.arcTo(x+w,y+h,x+w-br,y+h,br);
+    ctx.lineTo(x+bl,y+h);
+    ctx.arcTo(x,y+h,x,y+h-bl,bl);
+    ctx.lineTo(x,y+tl);
+    ctx.arcTo(x,y,x+tl,y,tl);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawSpire(s, back){
+    const floorY = H - GROUND_H;
+    const topH = s.gapTop;
+    const botY = s.gapTop + s.gap;
+    const botH = floorY - botY;
+    const r = 12;
+    ctx.fillStyle = back ? 'rgba(74,47,38,.32)' : '#4a2f26';
+    roundedRect(s.x, 0, SPIRE_W, topH, {tl:4,tr:4,bl:r,br:r});
+    roundedRect(s.x, botY, SPIRE_W, botH, {tl:r,tr:r,bl:4,br:4});
+    if(!back){
+      ctx.fillStyle = 'rgba(255,255,255,.08)';
+      ctx.fillRect(s.x+5, 4, 5, Math.max(0,topH-14));
+      ctx.fillRect(s.x+5, botY+10, 5, Math.max(0,botH-14));
+    }
+  }
+
+  function drawGround(){
+    const floorY = H - GROUND_H;
+    const g = ctx.createLinearGradient(0,floorY,0,H);
+    g.addColorStop(0,'#3d2b23'); g.addColorStop(1,'#241812');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,floorY,W,GROUND_H);
+    ctx.fillStyle = 'rgba(255,255,255,.05)';
+    const off = (elapsed*speed)%40;
+    for(let x=-off; x<W; x+=40){ ctx.fillRect(x, floorY+8, 22, 4); }
+  }
+
+  function drawParticles(){
+    for(const p of particles){
+      const t = 1-p.age/p.life;
+      const col = p.color || '255,214,102';
+      const alphaMax = p.alphaMax!==undefined ? p.alphaMax : 0.7;
+      const size = p.size!==undefined ? p.size : 3;
+      ctx.fillStyle = `rgba(${col},${Math.max(0,t*alphaMax)})`;
+      ctx.beginPath(); ctx.arc(p.x,p.y,size*t+1,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawBird(){
+    ctx.save();
+    ctx.translate(BIRD_X, bird.y);
+    ctx.rotate(bird.rot*Math.PI/180);
+    ctx.fillStyle = '#ef6461';
+    ctx.beginPath();
+    ctx.moveTo(-BIRD_R*0.2, 0);
+    ctx.lineTo(-BIRD_R*1.5, -BIRD_R*0.9);
+    ctx.lineTo(-BIRD_R*0.6, BIRD_R*0.15);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffd166';
+    ctx.beginPath();
+    ctx.ellipse(0,0,BIRD_R,BIRD_R*0.78,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#2b1b3d';
+    ctx.beginPath(); ctx.arc(BIRD_R*0.45,-BIRD_R*0.15,BIRD_R*0.14,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#e8703a';
+    ctx.beginPath();
+    ctx.moveTo(BIRD_R*0.85,-BIRD_R*0.05);
+    ctx.lineTo(BIRD_R*1.35,0);
+    ctx.lineTo(BIRD_R*0.85,BIRD_R*0.2);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  function render(){
+    drawSky();
+    for(const s of backSpires) drawSpire(s, true);
+    for(const s of spires) drawSpire(s, false);
+    drawGround();
+    drawParticles();
+    drawBird();
+  }
+
+  // ---------- loop ----------
+  function loop(t){
+    if(lastT==null) lastT=t;
+    let dt = (t-lastT)/1000;
+    lastT = t;
+    if(dt>0.032) dt=0.032;
+    if(state==='playing'){
+      update(dt);
+    } else if(state==='ready'){
+      elapsed += dt;
+      bird.y = H*0.42 + Math.sin(elapsed*2.2)*10;
+      for(const s of backSpires){ s.x -= speed*0.2*dt; }
+    } else {
+      updateParticles(dt);
+    }
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- HUD ----------
+  function updateHud(){ hudScore.textContent = score; }
+  function pulseScore(){
+    hudScore.classList.remove('pulse');
+    void hudScore.offsetWidth;
+    hudScore.classList.add('pulse');
+  }
+
+  // ---------- storage ----------
+  let player = { name:'', best:0 };
+  async function loadPlayer(){
+    try{
+      const res = await window.storage.get('player-data', false);
+      if(res && res.value) player = JSON.parse(res.value);
+    }catch(e){ /* nothing saved yet */ }
+    if(player.name) nameInput.value = player.name;
+    hudBestVal.textContent = player.best||0;
+  }
+  async function savePlayer(){
+    try{ await window.storage.set('player-data', JSON.stringify(player), false); }catch(e){}
+  }
+
+  let leaderboardCache = null;
+  async function loadLeaderboard(){
+    try{
+      const res = await window.storage.get('leaderboard', true);
+      leaderboardCache = res && res.value ? JSON.parse(res.value) : [];
+    }catch(e){ leaderboardCache = []; }
+    return leaderboardCache;
+  }
+  async function submitScore(name, sc){
+    try{
+      const board = await loadLeaderboard();
+      board.push({name: name||'Glider', score: sc, t: Date.now()});
+      board.sort((a,b)=>b.score-a.score);
+      const top = board.slice(0,20);
+      await window.storage.set('leaderboard', JSON.stringify(top), true);
+      leaderboardCache = top;
+    }catch(e){}
+  }
+
+  async function finishRun(){
+    const nm = (nameInput.value||'').trim().slice(0,14);
+    player.name = nm;
+    const isNewBest = score > (player.best||0);
+    if(isNewBest) player.best = score;
+    await savePlayer();
+    hudBestVal.textContent = player.best;
+    bestRow.innerHTML = isNewBest ? 'New personal best!' : `Your best: <b>${player.best}</b>`;
+    deadOverlay.classList.remove('hidden');
+    if(isNewBest && score>0){ submitScore(nm, score); }
+  }
+
+  // ---------- leaderboard UI ----------
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  async function renderBoard(){
+    boardStatus.textContent = 'Loading scores…';
+    boardList.innerHTML = '';
+    const board = await loadLeaderboard();
+    if(!board.length){
+      boardStatus.textContent = 'No runs yet — be the first on the board.';
+      return;
+    }
+    boardStatus.textContent = '';
+    board.slice(0,10).forEach((e,i)=>{
+      const li = document.createElement('li');
+      if(player.name && e.name===player.name && e.score===player.best) li.classList.add('me');
+      li.innerHTML = `<b>${i+1}</b><span class="nm">${escapeHtml(e.name||'Glider')}</span><span class="sc">${e.score}</span>`;
+      boardList.appendChild(li);
+    });
+  }
+
+  // ---------- share / toast ----------
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'), 2200);
+  }
+  async function shareScore(){
+    const text = `I scored ${score} in Canyon Glide (personal best: ${player.best}). Think you can out-glide me?`;
+    if(navigator.share){
+      try{ await navigator.share({title:'Canyon Glide', text}); return; }catch(e){}
+    }
+    try{ await navigator.clipboard.writeText(text); showToast('Challenge copied — paste it anywhere.'); }
+    catch(e){ showToast(text); }
+  }
+
+  // ---------- wire up DOM ----------
+  const startOverlay = document.getElementById('startOverlay');
+  const startPanel = document.getElementById('startPanel');
+  const deadOverlay = document.getElementById('deadOverlay');
+  const boardOverlay = document.getElementById('boardOverlay');
+  const nameInput = document.getElementById('nameInput');
+  const finalScore = document.getElementById('finalScore');
+  const bestRow = document.getElementById('bestRow');
+  const boardStatus = document.getElementById('boardStatus');
+  const boardList = document.getElementById('boardList');
+  const toast = document.getElementById('toast');
+  const hudScore = document.getElementById('hudScore');
+  const hudBestVal = document.getElementById('hudBestVal');
+  const btnBoardTop = document.getElementById('btnBoardTop');
+  const milestoneBanner = document.getElementById('milestoneBanner');
+  const milestoneNum = document.getElementById('milestoneNum');
+  const milestoneMsg = document.getElementById('milestoneMsg');
+
+  document.getElementById('btnStart').addEventListener('click', (e)=>{ e.stopPropagation(); startGame(); });
+  document.getElementById('btnRetry').addEventListener('click', (e)=>{ e.stopPropagation(); deadOverlay.classList.add('hidden'); startGame(); });
+  document.getElementById('btnShare').addEventListener('click', (e)=>{ e.stopPropagation(); shareScore(); });
+  [btnBoardTop, document.getElementById('btnBoardFromStart'), document.getElementById('btnBoardFromDead')].forEach(b=>{
+    b.addEventListener('click', (e)=>{ e.stopPropagation(); boardOverlay.classList.remove('hidden'); renderBoard(); });
+  });
+  document.getElementById('btnBoardClose').addEventListener('click', (e)=>{ e.stopPropagation(); boardOverlay.classList.add('hidden'); });
+  document.getElementById('btnReset').addEventListener('click', async (e)=>{
+    e.stopPropagation();
+    player = { name:'', best:0 };
+    nameInput.value = '';
+    hudBestVal.textContent = '0';
+    await savePlayer();
+    showToast('Your name and best score were cleared on this device.');
+  });
+  startPanel.addEventListener('pointerdown', (e)=>{
+    if(e.target.closest('button') || e.target.closest('input')) return;
+    startGame();
+  });
+
+  // ---------- boot ----------
+  resetRun();
+  loadPlayer();
+  loadLeaderboard();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
